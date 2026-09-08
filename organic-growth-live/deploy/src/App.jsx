@@ -7,9 +7,9 @@ import { TrendingUp, TrendingDown, Minus, Plus, X, ChevronDown, Sparkles, Refres
 
 // ---------- Seed data (parsed from "Organic Weekly Tracker- Claude Use") ----------
 const SEED = {"weeks": [], "years": [], "platforms": {
-  "Instagram - Scale Army": {"content": {"Reels": [], "Image Posts": []}, "impressions": [], "engagementRate": [], "reach": [], "clicks": [], "newFollowers": [], "leadsDM": [], "leadsUTM": []},
-  "LinkedIn - Scale Army": {"content": {"Video Posts": [], "Image Posts": [], "Text Posts": [], "Articles": []}, "impressions": [], "engagementRate": [], "reach": null, "clicks": [], "newFollowers": [], "leadsDM": [], "leadsUTM": []},
-  "Twitter - Scale Army": {"content": {"Text Tweets": [], "Image Tweets": [], "Video Tweets": []}, "impressions": [], "engagementRate": [], "reach": null, "clicks": [], "newFollowers": [], "leadsDM": [], "leadsUTM": []}
+  "Instagram - Scale Army": {"content": {"Reels": [], "Image Posts": []}, "impressions": [], "engagementRate": [], "likes": [], "comments": [], "other": [], "reach": [], "clicks": [], "newFollowers": [], "leadsDM": [], "leadsUTM": []},
+  "LinkedIn - Scale Army": {"content": {"Video Posts": [], "Image Posts": [], "Text Posts": [], "Articles": []}, "impressions": [], "engagementRate": [], "likes": [], "comments": [], "other": [], "reach": null, "clicks": [], "newFollowers": [], "leadsDM": [], "leadsUTM": []},
+  "Twitter - Scale Army": {"content": {"Text Tweets": [], "Image Tweets": [], "Video Tweets": []}, "impressions": [], "engagementRate": [], "likes": [], "comments": [], "other": [], "reach": null, "clicks": [], "newFollowers": [], "leadsDM": [], "leadsUTM": []}
 }};
 
 const PLATFORM_COLORS = {
@@ -39,6 +39,9 @@ function buildRows(data) {
       row[p] = {
         impressions: pd.impressions?.[i] ?? 0,
         engagementRate: pd.engagementRate?.[i] ?? 0,
+        likes: pd.likes?.[i] ?? 0,
+        comments: pd.comments?.[i] ?? 0,
+        other: pd.other?.[i] ?? 0,
         reach: pd.reach ? pd.reach[i] : null,
         clicks: pd.clicks?.[i] ?? 0,
         newFollowers: pd.newFollowers?.[i] ?? 0,
@@ -176,15 +179,15 @@ function WeekForm({ platforms, defaultWeek, onSave, onClose }) {
   const [year, setYear] = useState(defaultWeek?.year || "2026");
   const [platform, setPlatform] = useState(platforms[0]);
   const [vals, setVals] = useState(() => ({
-    impressions: "", engagementRate: "", reach: "", clicks: "", newFollowers: "",
+    impressions: "", engagementRate: "", likes: "", comments: "", other: "", reach: "", clicks: "", newFollowers: "",
     leadsDM: "", leadsUTM: "",
   }));
 
   const set = (k) => (e) => setVals((v) => ({ ...v, [k]: e.target.value }));
 
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: 16 }}>
-      <div style={{ background: CARD, border: `1px solid ${CARD_BORDER}`, borderRadius: 12, padding: 24, width: 420, maxWidth: "100%" }}>
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: 16, overflowY: "auto" }}>
+      <div style={{ background: CARD, border: `1px solid ${CARD_BORDER}`, borderRadius: 12, padding: 24, width: 420, maxWidth: "100%", maxHeight: "90vh", overflowY: "auto" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
           <h3 style={{ margin: 0, color: TEXT, fontSize: 16 }}>Add this week's data</h3>
           <button onClick={onClose} style={{ background: "none", border: "none", color: TEXT_MUTED, cursor: "pointer" }}><X size={18} /></button>
@@ -220,6 +223,20 @@ function WeekForm({ platforms, defaultWeek, onSave, onClose }) {
                 style={{ width: "100%", background: BG, border: `1px solid ${CARD_BORDER}`, borderRadius: 6, padding: "6px 8px", color: TEXT, marginTop: 4 }} />
             </div>
           ))}
+        </div>
+        <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${CARD_BORDER}` }}>
+          <div style={{ fontSize: 11, color: TEXT_MUTED, marginBottom: 6 }}>Engagement breakdown</div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+            {[
+              ["likes", "Likes"], ["comments", "Comments"], ["other", "Other (saves/shares/reports)"],
+            ].map(([k, l]) => (
+              <div key={k}>
+                <label style={{ fontSize: 11, color: TEXT_MUTED }}>{l}</label>
+                <input type="number" value={vals[k]} onChange={set(k)}
+                  style={{ width: "100%", background: BG, border: `1px solid ${CARD_BORDER}`, borderRadius: 6, padding: "6px 8px", color: TEXT, marginTop: 4 }} />
+              </div>
+            ))}
+          </div>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 10, paddingTop: 10, borderTop: `1px solid ${CARD_BORDER}` }}>
           <div>
@@ -291,6 +308,12 @@ export default function Dashboard({ readOnly = false }) {
         const pd = nd.platforms[p];
         pd.impressions.push(p === platform ? Number(vals.impressions || 0) : 0);
         pd.engagementRate.push(p === platform ? Number(vals.engagementRate || 0) : 0);
+        if (!pd.likes) pd.likes = pd.impressions.map(() => 0).slice(0, -1);
+        if (!pd.comments) pd.comments = pd.impressions.map(() => 0).slice(0, -1);
+        if (!pd.other) pd.other = pd.impressions.map(() => 0).slice(0, -1);
+        pd.likes.push(p === platform ? Number(vals.likes || 0) : 0);
+        pd.comments.push(p === platform ? Number(vals.comments || 0) : 0);
+        pd.other.push(p === platform ? Number(vals.other || 0) : 0);
         if (pd.reach) pd.reach.push(p === platform ? Number(vals.reach || 0) : 0);
         pd.clicks.push(p === platform ? Number(vals.clicks || 0) : 0);
         pd.newFollowers.push(p === platform ? Number(vals.newFollowers || 0) : 0);
@@ -304,6 +327,12 @@ export default function Dashboard({ readOnly = false }) {
       const pd = nd.platforms[platform];
       pd.impressions[i] = Number(vals.impressions || 0);
       pd.engagementRate[i] = Number(vals.engagementRate || 0);
+      if (!pd.likes) pd.likes = pd.impressions.map(() => 0);
+      if (!pd.comments) pd.comments = pd.impressions.map(() => 0);
+      if (!pd.other) pd.other = pd.impressions.map(() => 0);
+      pd.likes[i] = Number(vals.likes || 0);
+      pd.comments[i] = Number(vals.comments || 0);
+      pd.other[i] = Number(vals.other || 0);
       if (pd.reach) pd.reach[i] = Number(vals.reach || 0);
       pd.clicks[i] = Number(vals.clicks || 0);
       pd.newFollowers[i] = Number(vals.newFollowers || 0);
@@ -341,16 +370,19 @@ export default function Dashboard({ readOnly = false }) {
   const prevWeek = rows[selectedWeekIdx - 1];
 
   const weekTotals = (r) => {
-    if (!r) return { impressions: 0, engagementRate: 0, leads: 0, newFollowers: 0, clicks: 0 };
-    let impressions = 0, leads = 0, newFollowers = 0, clicks = 0, erSum = 0, erCount = 0;
+    if (!r) return { impressions: 0, engagementRate: 0, leads: 0, newFollowers: 0, clicks: 0, likes: 0, comments: 0, other: 0 };
+    let impressions = 0, leads = 0, newFollowers = 0, clicks = 0, erSum = 0, erCount = 0, likes = 0, comments = 0, other = 0;
     visiblePlatforms.forEach((p) => {
       impressions += r[p].impressions;
       leads += r[p].leadsDM + r[p].leadsUTM;
       newFollowers += r[p].newFollowers;
       clicks += r[p].clicks;
+      likes += r[p].likes;
+      comments += r[p].comments;
+      other += r[p].other;
       erSum += r[p].engagementRate; erCount += 1;
     });
-    return { impressions, engagementRate: erCount ? erSum / erCount : 0, leads, newFollowers, clicks };
+    return { impressions, engagementRate: erCount ? erSum / erCount : 0, leads, newFollowers, clicks, likes, comments, other };
   };
   const wt = weekTotals(selectedWeek);
   const wtPrev = weekTotals(prevWeek);
@@ -463,6 +495,9 @@ export default function Dashboard({ readOnly = false }) {
             <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 22 }}>
               <KpiCard label="Total leads" value={fmt(wt.leads)} accent={ACCENT} sub={<Delta curr={wt.leads} prev={wtPrev.leads} />} />
               <KpiCard label="Avg engagement rate" value={`${fmt(wt.engagementRate, 1)}%`} sub={<Delta curr={wt.engagementRate} prev={wtPrev.engagementRate} />} />
+              <KpiCard label="Likes" value={fmt(wt.likes)} sub={<Delta curr={wt.likes} prev={wtPrev.likes} />} />
+              <KpiCard label="Comments" value={fmt(wt.comments)} sub={<Delta curr={wt.comments} prev={wtPrev.comments} />} />
+              <KpiCard label="Other (saves/shares/reports)" value={fmt(wt.other)} sub={<Delta curr={wt.other} prev={wtPrev.other} />} />
               <KpiCard label="Impressions" value={fmt(wt.impressions)} sub={<Delta curr={wt.impressions} prev={wtPrev.impressions} />} />
               <KpiCard label="New followers" value={fmt(wt.newFollowers)} sub={<Delta curr={wt.newFollowers} prev={wtPrev.newFollowers} />} />
               <KpiCard label="Clicks / traffic" value={fmt(wt.clicks)} sub={<Delta curr={wt.clicks} prev={wtPrev.clicks} />} />
@@ -576,10 +611,10 @@ export default function Dashboard({ readOnly = false }) {
         <div style={{ background: CARD, border: `1px solid ${CARD_BORDER}`, borderRadius: 12, padding: 18, marginTop: 18 }}>
           <SectionTitle right={
             <button onClick={() => {
-              const header = ["week","year","platform","impressions","engagementRate","reach","clicks","newFollowers","leadsDM","leadsUTM"];
+              const header = ["week","year","platform","impressions","engagementRate","likes","comments","other","reach","clicks","newFollowers","leadsDM","leadsUTM"];
               const lines = [header.join(",")];
               rows.forEach((r) => platforms.forEach((p) => {
-                lines.push([r.week, r.year, p, r[p].impressions, r[p].engagementRate, r[p].reach ?? "", r[p].clicks, r[p].newFollowers, r[p].leadsDM, r[p].leadsUTM].join(","));
+                lines.push([r.week, r.year, p, r[p].impressions, r[p].engagementRate, r[p].likes, r[p].comments, r[p].other, r[p].reach ?? "", r[p].clicks, r[p].newFollowers, r[p].leadsDM, r[p].leadsUTM].join(","));
               }));
               const blob = new Blob([lines.join("\n")], { type: "text/csv" });
               const url = URL.createObjectURL(blob);
@@ -597,7 +632,7 @@ export default function Dashboard({ readOnly = false }) {
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
               <thead style={{ position: "sticky", top: 0, background: "#161A20" }}>
                 <tr>
-                  {["Week","Platform","Impr.","Eng. rate","Clicks","New foll.","DM leads","UTM leads"].map((h) => (
+                  {["Week","Platform","Impr.","Eng. rate","Likes","Comments","Other","Clicks","New foll.","DM leads","UTM leads"].map((h) => (
                     <th key={h} style={{ textAlign: "left", padding: "6px 10px", color: TEXT_MUTED, fontWeight: 600, borderBottom: `1px solid ${CARD_BORDER}` }}>{h}</th>
                   ))}
                 </tr>
@@ -609,6 +644,9 @@ export default function Dashboard({ readOnly = false }) {
                     <td style={{ padding: "5px 10px" }}>{p.replace(" - Scale Army", "")}</td>
                     <td style={{ padding: "5px 10px" }}>{fmt(r[p].impressions)}</td>
                     <td style={{ padding: "5px 10px" }}>{fmt(r[p].engagementRate, 1)}%</td>
+                    <td style={{ padding: "5px 10px" }}>{fmt(r[p].likes)}</td>
+                    <td style={{ padding: "5px 10px" }}>{fmt(r[p].comments)}</td>
+                    <td style={{ padding: "5px 10px" }}>{fmt(r[p].other)}</td>
                     <td style={{ padding: "5px 10px" }}>{fmt(r[p].clicks)}</td>
                     <td style={{ padding: "5px 10px" }}>{fmt(r[p].newFollowers)}</td>
                     <td style={{ padding: "5px 10px", color: ACCENT }}>{fmt(r[p].leadsDM)}</td>
