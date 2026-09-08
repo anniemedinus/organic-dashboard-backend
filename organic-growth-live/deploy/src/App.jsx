@@ -174,7 +174,7 @@ const TONE_STYLE = {
 };
 
 // ---------- Add / Edit week form ----------
-function WeekForm({ platforms, defaultWeek, onSave, onClose }) {
+function WeekForm({ platforms, contentTypesByPlatform, defaultWeek, onSave, onClose }) {
   const [weekLabel, setWeekLabel] = useState(defaultWeek?.week || "");
   const [year, setYear] = useState(defaultWeek?.year || "2026");
   const [platform, setPlatform] = useState(platforms[0]);
@@ -182,8 +182,16 @@ function WeekForm({ platforms, defaultWeek, onSave, onClose }) {
     impressions: "", engagementRate: "", likes: "", comments: "", other: "", reach: "", clicks: "", newFollowers: "",
     leadsDM: "", leadsUTM: "",
   }));
+  const [contentVals, setContentVals] = useState(() =>
+    Object.fromEntries((contentTypesByPlatform[platforms[0]] || []).map((ct) => [ct, ""]))
+  );
+
+  useEffect(() => {
+    setContentVals(Object.fromEntries((contentTypesByPlatform[platform] || []).map((ct) => [ct, ""])));
+  }, [platform]);
 
   const set = (k) => (e) => setVals((v) => ({ ...v, [k]: e.target.value }));
+  const setContent = (ct) => (e) => setContentVals((v) => ({ ...v, [ct]: e.target.value }));
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: 16, overflowY: "auto" }}>
@@ -250,10 +258,22 @@ function WeekForm({ platforms, defaultWeek, onSave, onClose }) {
               style={{ width: "100%", background: BG, border: `1px solid ${CARD_BORDER}`, borderRadius: 6, padding: "6px 8px", color: TEXT, marginTop: 4 }} />
           </div>
         </div>
+        <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${CARD_BORDER}` }}>
+          <div style={{ fontSize: 11, color: TEXT_MUTED, marginBottom: 6 }}>Content published this week ({platform.replace(" - Scale Army", "")})</div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            {(contentTypesByPlatform[platform] || []).map((ct) => (
+              <div key={ct}>
+                <label style={{ fontSize: 11, color: TEXT_MUTED }}>{ct}</label>
+                <input type="number" value={contentVals[ct] ?? ""} onChange={setContent(ct)}
+                  style={{ width: "100%", background: BG, border: `1px solid ${CARD_BORDER}`, borderRadius: 6, padding: "6px 8px", color: TEXT, marginTop: 4 }} />
+              </div>
+            ))}
+          </div>
+        </div>
         <button
           onClick={() => {
             if (!weekLabel) return;
-            onSave({ weekLabel, year, platform, vals });
+            onSave({ weekLabel, year, platform, vals: { ...vals, content: contentVals } });
           }}
           style={{ marginTop: 18, width: "100%", background: ACCENT, color: "#241B0A", border: "none", borderRadius: 8, padding: "10px 0", fontWeight: 700, cursor: "pointer" }}>
           Save entry
@@ -290,6 +310,9 @@ export default function Dashboard({ readOnly = false }) {
   }, []);
 
   const platforms = data ? Object.keys(data.platforms) : [];
+  const contentTypesByPlatform = data
+    ? Object.fromEntries(platforms.map((p) => [p, Object.keys(data.platforms[p].content || {})]))
+    : {};
   const rows = useMemo(() => (data ? buildRows(data) : []), [data]);
 
   useEffect(() => {
@@ -320,7 +343,7 @@ export default function Dashboard({ readOnly = false }) {
         if (!pd.leadsDM) { pd.leadsDM = pd.leads ? [...pd.leads] : pd.impressions.map(() => 0); pd.leadsUTM = pd.impressions.map(() => 0); }
         pd.leadsDM.push(p === platform ? Number(vals.leadsDM || 0) : 0);
         pd.leadsUTM.push(p === platform ? Number(vals.leadsUTM || 0) : 0);
-        Object.keys(pd.content || {}).forEach((ct) => pd.content[ct].push(0));
+        Object.keys(pd.content || {}).forEach((ct) => pd.content[ct].push(p === platform && vals.content ? Number(vals.content[ct] || 0) : 0));
       });
     } else {
       const i = nd.weeks.indexOf(weekLabel);
@@ -339,6 +362,12 @@ export default function Dashboard({ readOnly = false }) {
       if (!pd.leadsDM) { pd.leadsDM = [...pd.impressions.map(() => 0)]; pd.leadsUTM = [...pd.impressions.map(() => 0)]; }
       pd.leadsDM[i] = Number(vals.leadsDM || 0);
       pd.leadsUTM[i] = Number(vals.leadsUTM || 0);
+      if (vals.content) {
+        Object.keys(pd.content || {}).forEach((ct) => {
+          if (!pd.content[ct]) pd.content[ct] = pd.impressions.map(() => 0);
+          pd.content[ct][i] = Number(vals.content[ct] || 0);
+        });
+      }
     }
     setData(nd);
     try { await window.storage.set("tracker-data", JSON.stringify(nd), true); } catch (e) {}
@@ -664,7 +693,7 @@ export default function Dashboard({ readOnly = false }) {
       </div>
 
       {!readOnly && showForm && (
-        <WeekForm platforms={platforms} defaultWeek={rows[rows.length - 1]} onSave={saveEntry} onClose={() => setShowForm(false)} />
+        <WeekForm platforms={platforms} contentTypesByPlatform={contentTypesByPlatform} defaultWeek={rows[rows.length - 1]} onSave={saveEntry} onClose={() => setShowForm(false)} />
       )}
     </div>
   );
